@@ -9,14 +9,14 @@ export default async function handler(req, res) {
   const apiKey = process.env.SHOPIER_API_KEY;
   const apiSecret = process.env.SHOPIER_API_SECRET;
 
-  // Test için sahte sipariş bilgileri
-  const order_id = Date.now().toString();
-  const amount = "100.00"; // test için 100 TL
+  // Şimdilik test için sabit değerler
+  const order_id = Date.now().toString(); 
+  const amount = "50.00"; // Test için 50 TL
   const buyer_name = "Test Kullanıcı";
   const buyer_email = "test@example.com";
   const buyer_address = "İstanbul, Türkiye";
 
-  // İmza oluştur
+  // Shopier imzası
   const signature = crypto
     .createHmac("sha256", apiSecret)
     .update(order_id + amount)
@@ -35,10 +35,10 @@ export default async function handler(req, res) {
       fail_url: process.env.FAIL_URL,
     });
 
-    // Shopier ödeme linkine yönlendir
+    // Shopier'in döndüğü ödeme linkine yönlendir
     return res.redirect(response.data.checkout_url);
   } catch (err) {
-    console.error(err);
+    console.error("Shopier error:", err?.response?.data || err.message);
     return res.status(500).json({ error: "Ödeme linki oluşturulamadı" });
   }
 }
