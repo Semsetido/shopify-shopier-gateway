@@ -1,35 +1,45 @@
+import crypto from "crypto";
 import axios from "axios";
+import qs from "qs";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Sadece POST destekleniyor" });
   }
 
-  const { order_id, amount, buyer_name, buyer_surname, buyer_email, buyer_phone } = req.body;
+  const { order_id, amount, buyer_name, buyer_email, buyer_address } = req.body;
+
+  const apiKey = process.env.SHOPIER_API_KEY;
+  const apiSecret = process.env.SHOPIER_API_SECRET;
+
+  // Shopier için imza oluşturma
+  const signature = crypto
+    .createHmac("sha256", apiSecret)
+    .update(order_id + amount)
+    .digest("hex");
 
   try {
-    const response = await axios.post(
-      "https://www.shopier.com/ShowProduct/api_pay4.php",
-      {
-        API_key: process.env.SHOPIER_API_KEY,
-        API_secret: process.env.SHOPIER_API_SECRET,
-        product_name: "Sipariş", // sabit yazabilirsin
-        product_type: 1,         // ürün = 1
-        currency: 0,             // TL = 0
-        order_id,
-        amount,
-        buyer_name,
-        buyer_surname,
-        buyer_email,
-        buyer_phone,
-        success_url: process.env.SUCCESS_URL,
-        fail_url: process.env.FAIL_URL,
-      }
-    );
+    const data = qs.stringify({
+      api_key: apiKey,
+      order_id,
+      amount,
+      buyer_name,
+      buyer_email,
+      buyer_address,
+      signature,
+      success_url: process.env.SUCCESS_URL,
+      fail_url: process.env.FAIL_URL
+    });
 
-    return res.json({ checkout_url: response.data });
+    const response = await axios.post("https://www.shopier.com/api/checkout", data, {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      }
+    });
+
+    return res.json({ checkout_url: response.data.checkout_url });
   } catch (err) {
-    console.error(err.response?.data || err.message);
+    console.error("Shopier API Hatası:", err.response?.data || err.message);
     return res.status(500).json({ error: "Ödeme linki oluşturulamadı" });
   }
 }
